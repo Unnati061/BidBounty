@@ -2,6 +2,11 @@ import React, { useState } from 'react';
 import { Sliders, RotateCcw } from 'lucide-react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 
+const configuredApiHost = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = configuredApiHost
+  ? `${/^https?:\/\//i.test(configuredApiHost) ? '' : 'https://'}${configuredApiHost}`.replace(/\/$/, '')
+  : '';
+
 export const PRODUCT_OPTIONS = [
   {
     id: 'sony_xm5',
@@ -292,7 +297,7 @@ const HeroProductBarContent = ({
                 disabled={phase !== 'idle'}
                 createOrder={async () => {
                   try {
-                    const res = await fetch('http://localhost:8000/api/paypal/create-order', {
+                    const res = await fetch(`${API_BASE_URL}/api/paypal/create-order`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({
@@ -314,7 +319,7 @@ const HeroProductBarContent = ({
                 onApprove={async (data) => {
                   try {
                     const orderId = data.orderID;
-                    const res = await fetch('http://localhost:8000/api/paypal/authorize', {
+                    const res = await fetch(`${API_BASE_URL}/api/paypal/authorize`, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ order_id: orderId })

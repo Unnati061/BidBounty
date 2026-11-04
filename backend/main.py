@@ -37,14 +37,8 @@ app.add_middleware(
 # PayPal Sandbox Configuration
 PAYPAL_ENV = os.getenv("PAYPAL_ENV", "sandbox")
 PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com" if PAYPAL_ENV == "sandbox" else "https://api-m.paypal.com"
-PAYPAL_CLIENT_ID = os.getenv(
-    "PAYPAL_CLIENT_ID",
-    "BAAY-TZ5IUiVwZT9k_cLVkDxiMzRK9wEIN8P-cr1tBFYhyzs7mw9gTnMpHEFld4sFxEcLTvqkBD-FedBNg"
-)
-PAYPAL_CLIENT_SECRET = os.getenv(
-    "PAYPAL_CLIENT_SECRET",
-    "EH2_NokBHom7lQItzBBfzi-iXik1s10GECCsRWqMFtXZK6FJgzB-EZWY_FPHej0I0RSt2gmG1mA-hhZx"
-)
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 
 # Cached token store
 _token_cache = {

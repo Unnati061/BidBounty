@@ -9,6 +9,11 @@ import PayPalLogs from './components/PayPalLogs';
 import DealToast from './components/DealToast';
 import { INITIAL_MERCHANTS, calcMargin } from './data/merchants';
 
+const configuredApiHost = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = configuredApiHost
+  ? `${/^https?:\/\//i.test(configuredApiHost) ? '' : 'https://'}${configuredApiHost}`.replace(/\/$/, '')
+  : '';
+
 const PRODUCT_DATA = {
   sony_xm5: {
     retail: 251.0,
@@ -244,7 +249,7 @@ export default function App() {
 
     try {
       // 1. Call Backend POST /api/paypal/create-order
-      const orderRes = await fetch('http://localhost:8000/api/paypal/create-order', {
+      const orderRes = await fetch(`${API_BASE_URL}/api/paypal/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -268,7 +273,7 @@ export default function App() {
       // 2. Call Backend POST /api/paypal/authorize
       setTimeout(async () => {
         try {
-          const authRes = await fetch('http://localhost:8000/api/paypal/authorize', {
+          const authRes = await fetch(`${API_BASE_URL}/api/paypal/authorize`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ order_id: currentOrderId })
@@ -344,7 +349,7 @@ export default function App() {
     const activeAuthId = authId || 'AUTH-41V9X';
 
     try {
-      const voidRes = await fetch('http://localhost:8000/api/paypal/void', {
+      const voidRes = await fetch(`${API_BASE_URL}/api/paypal/void`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -378,7 +383,7 @@ export default function App() {
 
     try {
       // 1. Call Backend POST /api/paypal/capture
-      const capRes = await fetch('http://localhost:8000/api/paypal/capture', {
+      const capRes = await fetch(`${API_BASE_URL}/api/paypal/capture`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -404,7 +409,7 @@ export default function App() {
       );
 
       // 2. Call Backend POST /api/paypal/track
-      const trackRes = await fetch('http://localhost:8000/api/paypal/track', {
+      const trackRes = await fetch(`${API_BASE_URL}/api/paypal/track`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
