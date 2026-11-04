@@ -7,6 +7,8 @@
 [![APIMatic](https://img.shields.io/badge/APIMatic-OpenAPI%20Spec-4A90E2?style=for-the-badge)](https://www.apimatic.io)
 [![Channel3](https://img.shields.io/badge/Channel3-Live%20Feed-10B981?style=for-the-badge)](https://channel3.tv)
 
+**Live app:** [bidbounty-frontend.onrender.com](https://bidbounty-frontend.onrender.com)
+
 > **Elevator Pitch:** E-commerce today is fundamentally broken: buyers waste hours hunting coupon codes and comparing tabs, while retailers pay astronomical advertising fees for uncertain conversions. **BidBounty** flips the entire commerce paradigm through an **Autonomous Reverse-Checkout & Request-For-Quote (RFQ) Terminal**. Instead of browsing static prices, buyers declare their maximum spend cap and lock in a binding PayPal authorization hold. Autonomous merchant agents then compete live in a high-frequency descending auction to capture the guaranteed order without dropping below their private gross margins. Once a winning bid locks in, BidBounty automatically executes a server-guarded partial capture, instantly releases excess funds back to the buyer, and registers package tracking for complete PayPal Seller and Buyer Protection.
 
 ---
