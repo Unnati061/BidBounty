@@ -307,6 +307,9 @@ const HeroProductBarContent = ({
                       })
                     });
                     const data = await res.json();
+                    if (!res.ok) {
+                      throw new Error(data.detail || 'PayPal could not create the order.');
+                    }
                     if (onOrderCreated) {
                       onOrderCreated(data);
                     }
