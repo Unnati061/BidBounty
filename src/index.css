@@ -1,0 +1,231 @@
+@import "ag-grid-community/styles/ag-grid.css";
+@import "ag-grid-community/styles/ag-theme-quartz.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #08090C;
+  color: #F2F4F8;
+  margin: 0;
+  padding: 0;
+}
+
+.font-sans {
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.font-mono {
+  font-family: 'Geist Mono', 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.ui-label {
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  color: #9AA3B2;
+}
+
+@keyframes deltaFloat {
+  0% { opacity: 0; transform: translateY(5px); }
+  20% { opacity: 1; transform: translateY(0px); }
+  80% { opacity: 1; transform: translateY(-2px); }
+  100% { opacity: 0; transform: translateY(-6px); }
+}
+.animate-delta-chip {
+  animation: deltaFloat 1.3s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes sweepLine {
+  0% { transform: scaleX(0); opacity: 0.95; }
+  65% { transform: scaleX(1); opacity: 0.85; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+.animate-accent-sweep {
+  transform-origin: left center;
+  animation: sweepLine 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes goldPerimeterDraw {
+  0% { stroke-dashoffset: 2400; opacity: 0.3; }
+  100% { stroke-dashoffset: 0; opacity: 1; }
+}
+.animate-gold-stroke {
+  stroke-dasharray: 2400;
+  animation: goldPerimeterDraw 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes checkStroke {
+  0% { stroke-dashoffset: 24; }
+  100% { stroke-dashoffset: 0; }
+}
+.animate-check-draw {
+  stroke-dasharray: 24;
+  animation: checkStroke 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes microShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.animate-micro-shake {
+  animation: microShake 150ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, ::before, ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ============================================================================
+   AG GRID THEME QUARTZ DARK HAIRLINE STYLING OVERRIDES (Exact Phase 1 Match)
+   ============================================================================ */
+.ag-theme-quartz-dark,
+.ag-theme-quartz {
+  --ag-font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --ag-font-size: 13px;
+  --ag-background-color: transparent;
+  --ag-header-background-color: transparent;
+  --ag-control-panel-background-color: transparent;
+  --ag-odd-row-background-color: transparent;
+  --ag-header-foreground-color: #9AA3B2;
+  --ag-foreground-color: #F2F4F8;
+  --ag-data-color: #F2F4F8;
+  --ag-secondary-foreground-color: #9AA3B2;
+  --ag-borders: none;
+  --ag-border-color: rgba(255, 255, 255, 0.06);
+  --ag-row-border-color: rgba(255, 255, 255, 0.06);
+  --ag-row-border-width: 1px;
+  --ag-header-column-separator-color: transparent;
+  --ag-header-column-resize-handle-color: transparent;
+  --ag-row-hover-color: transparent;
+  --ag-selected-row-background-color: transparent;
+  --ag-range-selection-border-color: transparent;
+  --ag-range-selection-background-color: transparent;
+  --ag-cell-horizontal-border: transparent;
+  --ag-wrapper-border-radius: 0px;
+  --ag-header-height: 36px;
+  --ag-row-height: 84px;
+  --ag-auto-height-max-body-height: none;
+  --ag-cell-focus-border: none;
+  --ag-cell-focus-outline: none;
+  --ag-cell-horizontal-padding: 16px;
+  --ag-header-column-separator-display: none;
+}
+
+/* Strip default borders and backgrounds */
+.ag-theme-quartz-dark .ag-root-wrapper,
+.ag-theme-quartz .ag-root-wrapper {
+  background: transparent !important;
+  border: none !important;
+}
+
+.ag-theme-quartz-dark .ag-root-wrapper-body,
+.ag-theme-quartz .ag-root-wrapper-body {
+  background: transparent !important;
+}
+
+.ag-theme-quartz-dark .ag-header,
+.ag-theme-quartz .ag-header {
+  background: transparent !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
+
+.ag-theme-quartz-dark .ag-header-row,
+.ag-theme-quartz .ag-header-row {
+  height: 36px !important;
+  line-height: 36px !important;
+}
+
+.ag-theme-quartz-dark .ag-header-cell,
+.ag-theme-quartz .ag-header-cell {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  border: none !important;
+}
+
+.ag-theme-quartz-dark .ag-header-cell-text,
+.ag-theme-quartz .ag-header-cell-text {
+  font-family: 'Geist', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+  font-size: 12px !important;
+  letter-spacing: 0.04em !important;
+  color: #9AA3B2 !important;
+  font-weight: 400 !important;
+}
+
+.ag-theme-quartz-dark .ag-right-aligned-header .ag-header-cell-label,
+.ag-theme-quartz .ag-right-aligned-header .ag-header-cell-label {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+.ag-theme-quartz-dark .ag-cell,
+.ag-theme-quartz .ag-cell {
+  padding-left: 16px !important;
+  padding-right: 16px !important;
+  border: none !important;
+  outline: none !important;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.ag-theme-quartz-dark .ag-cell:focus,
+.ag-theme-quartz-dark .ag-cell-focus,
+.ag-theme-quartz .ag-cell:focus,
+.ag-theme-quartz .ag-cell-focus {
+  border: none !important;
+  outline: none !important;
+}
+
+.ag-theme-quartz-dark .ag-right-aligned-cell,
+.ag-theme-quartz .ag-right-aligned-cell {
+  justify-content: flex-end !important;
+  text-align: right !important;
+}
+
+.ag-theme-quartz-dark .ag-row,
+.ag-theme-quartz .ag-row {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  background-color: transparent !important;
+  will-change: transform, opacity;
+  transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ag-theme-quartz-dark .ag-row-hover,
+.ag-theme-quartz .ag-row-hover {
+  background-color: transparent !important;
+}
+
+/* Winner Row Overlay and Glow */
+.ag-theme-quartz-dark .bidbounty-winner-row,
+.ag-theme-quartz .bidbounty-winner-row {
+  background-color: rgba(15, 17, 23, 0.9) !important;
+  backdrop-filter: blur(12px) !important;
+  border-radius: 8px !important;
+  border-color: transparent !important;
+  box-shadow: inset 0 0 24px rgba(245, 185, 74, 0.08) !important;
+  z-index: 20 !important;
+}
+
+.ag-theme-quartz-dark .bidbounty-winner-row::after,
+.ag-theme-quartz .bidbounty-winner-row::after {
+  content: '';
+  position: absolute;
+  inset: 0.5px;
+  border-radius: 8px;
+  border: 1px solid #F5B94A;
+  pointer-events: none;
+  animation: goldPerimeterDraw 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* Dimmed loser / floor rows (strict 55% opacity) */
+.ag-theme-quartz-dark .bidbounty-dimmed-row,
+.ag-theme-quartz .bidbounty-dimmed-row {
+  opacity: 0.55 !important;
+}

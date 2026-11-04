@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+httpx
+sse-starlette
+google-genai
+python-dotenv
