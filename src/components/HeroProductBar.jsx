@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Sliders, RotateCcw } from 'lucide-react';
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js';
 
-const configuredApiHost = import.meta.env.VITE_API_BASE_URL || '';
+const configuredApiHost = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const API_BASE_URL = configuredApiHost
   ? `${/^https?:\/\//i.test(configuredApiHost) ? '' : 'https://'}${configuredApiHost}`.replace(/\/$/, '')
   : '';

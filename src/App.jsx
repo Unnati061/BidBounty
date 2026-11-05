@@ -9,7 +9,7 @@ import PayPalLogs from './components/PayPalLogs';
 import DealToast from './components/DealToast';
 import { INITIAL_MERCHANTS, calcMargin } from './data/merchants';
 
-const configuredApiHost = import.meta.env.VITE_API_BASE_URL || '';
+const configuredApiHost = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
 const API_BASE_URL = configuredApiHost
   ? `${/^https?:\/\//i.test(configuredApiHost) ? '' : 'https://'}${configuredApiHost}`.replace(/\/$/, '')
   : '';
