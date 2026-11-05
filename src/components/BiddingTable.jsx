@@ -192,7 +192,7 @@ const LiveBidCellRenderer = (params) => {
         value={m.currentBid}
         className={`text-lg font-semibold ${
           isWinner
-            ? 'text-[#F2F4F8]'
+            ? 'text-[#F5B94A]'
             : isFloor
             ? 'text-[#9AA3B2]'
             : 'text-[#F2F4F8]'
@@ -223,7 +223,7 @@ const StatusCellRenderer = (params) => {
       <span
         className={`text-xs font-medium whitespace-nowrap ${
           isWinner
-            ? 'text-[#F5B94A]'
+            ? 'bidbounty-winner-status text-[#F5B94A] font-bold'
             : isFloor
             ? 'text-[#F87171]'
             : m.statusLabel === 'Leading'
@@ -398,22 +398,11 @@ const BiddingTable = ({
     });
   }, []);
 
-  // AG Grid row classes (winner glow + hairline border, floor dimming)
-  const getRowClass = useMemo(() => (params) => {
-    const m = params.data;
-    if (!m) return '';
-    const isWinner = m.state === 'winner';
-    const isFloor = m.state === 'floor';
-    const isAuctionFinished = phase === 'captured' || phase === 'human_confirm';
-
-    if (isWinner && isAuctionFinished) {
-      return 'ag-row-winner-glow';
-    }
-    if (isFloor) {
-      return 'opacity-50 transition-opacity duration-300';
-    }
-    return '';
-  }, [phase]);
+  // State-driven row classes keep the winner dominant as soon as the final tick arrives.
+  const rowClassRules = useMemo(() => ({
+    'bidbounty-winner-row': (params) => params.data?.state === 'winner',
+    'bidbounty-floor-row': (params) => params.data?.state === 'floor'
+  }), []);
 
   // Column Definitions for AG Grid
   const columnDefs = useMemo(() => [
@@ -514,7 +503,7 @@ const BiddingTable = ({
           headerHeight={36}
           animateRows={true}
           postSortRows={postSortRows}
-          getRowClass={getRowClass}
+          rowClassRules={rowClassRules}
           suppressCellFocus={true}
           suppressRowClickSelection={true}
           suppressColumnVirtualisation={true}

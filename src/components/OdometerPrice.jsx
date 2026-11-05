@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 // Digit-by-digit vertical odometer price roller (250ms cubic-bezier)
 const OdometerDigit = ({ char }) => {
@@ -30,13 +30,32 @@ const OdometerDigit = ({ char }) => {
 };
 
 const OdometerPrice = ({ value, prefix = '$', className = '' }) => {
-  const formatted = Number(value).toFixed(2);
+  const numericValue = Number(value);
+  const previousValueRef = useRef(numericValue);
+  const [pulseKey, setPulseKey] = useState(0);
+
+  useEffect(() => {
+    if (numericValue < previousValueRef.current) {
+      setPulseKey((key) => key + 1);
+    }
+    previousValueRef.current = numericValue;
+  }, [numericValue]);
+
+  const formatted = numericValue.toFixed(2);
   const chars = `${prefix}${formatted}`.split('');
+
   return (
-    <span className={`inline-flex items-baseline font-mono tabular-nums tracking-tight ${className}`}>
-      {chars.map((ch, idx) => (
-        <OdometerDigit key={idx} char={ch} />
-      ))}
+    <span className="inline-flex overflow-visible">
+      <span
+        key={pulseKey}
+        className={`inline-flex items-baseline font-mono tabular-nums tracking-tight ${
+          pulseKey > 0 ? 'animate-price-tick' : ''
+        } ${className}`}
+      >
+        {chars.map((ch, idx) => (
+          <OdometerDigit key={idx} char={ch} />
+        ))}
+      </span>
     </span>
   );
 };

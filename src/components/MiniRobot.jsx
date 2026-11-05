@@ -18,7 +18,7 @@ export const MiniRobot = ({ variant = 'apex', state = 'idle' }) => {
 
   return (
     <div
-      className={`relative w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 border ${
+      className={`bidbounty-robot relative w-10 h-10 rounded-lg flex items-center justify-center shrink-0 transition-colors duration-300 border ${
         isWinner
           ? 'bg-[#0F1117] border-[#F5B94A]/50'
           : isFloor
@@ -29,7 +29,7 @@ export const MiniRobot = ({ variant = 'apex', state = 'idle' }) => {
       }`}
     >
       {isWinner && (
-        <span className="absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#0F1117] border border-[#F5B94A]/60 flex items-center justify-center shadow-sm">
+        <span className="bidbounty-crown absolute -top-2 -right-2 w-4 h-4 rounded-full bg-[#0F1117] border border-[#F5B94A]/60 flex items-center justify-center shadow-sm animate-crown-pop">
           <Crown className="w-2.5 h-2.5 text-[#F5B94A]" />
         </span>
       )}

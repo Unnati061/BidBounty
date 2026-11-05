@@ -75,6 +75,37 @@ body {
   animation: microShake 150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+@keyframes priceTick {
+  0% {
+    color: inherit;
+    transform: scale(1);
+    text-shadow: none;
+  }
+  45% {
+    color: #38BDF8;
+    transform: scale(1.1);
+    text-shadow: 0 0 14px rgba(56, 189, 248, 0.75);
+  }
+  100% {
+    color: inherit;
+    transform: scale(1);
+    text-shadow: none;
+  }
+}
+.animate-price-tick {
+  animation: priceTick 150ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-origin: right center;
+}
+
+@keyframes crownPop {
+  0% { opacity: 0; transform: translateY(4px) scale(0.55); }
+  65% { opacity: 1; transform: translateY(-2px) scale(1.25); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-crown-pop {
+  animation: crownPop 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, ::before, ::after {
     animation-duration: 0.01ms !important;
@@ -197,19 +228,31 @@ body {
   transition: opacity 300ms cubic-bezier(0.22, 1, 0.36, 1), background-color 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* AG Grid's FLIP row placement transition. */
+.ag-theme-quartz-dark .ag-row-animation .ag-row,
+.ag-theme-quartz .ag-row-animation .ag-row,
+.ag-theme-quartz-dark .ag-row-animation .ag-row.ag-after-created,
+.ag-theme-quartz .ag-row-animation .ag-row.ag-after-created {
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    top 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    height 0.4s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 300ms cubic-bezier(0.22, 1, 0.36, 1),
+    background-color 300ms cubic-bezier(0.22, 1, 0.36, 1) !important;
+}
+
 .ag-theme-quartz-dark .ag-row-hover,
 .ag-theme-quartz .ag-row-hover {
   background-color: transparent !important;
 }
 
-/* Winner Row Overlay and Glow */
+/* Winner Row: strong gold signal as soon as the final bid lands. */
 .ag-theme-quartz-dark .bidbounty-winner-row,
 .ag-theme-quartz .bidbounty-winner-row {
-  background-color: rgba(15, 17, 23, 0.9) !important;
+  background-color: rgba(245, 185, 74, 0.1) !important;
   backdrop-filter: blur(12px) !important;
   border-radius: 8px !important;
-  border-color: transparent !important;
-  box-shadow: inset 0 0 24px rgba(245, 185, 74, 0.08) !important;
+  border-left: 3px solid #F5B94A !important;
+  box-shadow: inset 3px 0 0 #F5B94A, inset 0 0 28px rgba(245, 185, 74, 0.16) !important;
   z-index: 20 !important;
 }
 
@@ -219,13 +262,22 @@ body {
   position: absolute;
   inset: 0.5px;
   border-radius: 8px;
-  border: 1px solid #F5B94A;
+  border: 1px solid rgba(245, 185, 74, 0.8);
   pointer-events: none;
   animation: goldPerimeterDraw 600ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Dimmed loser / floor rows (strict 55% opacity) */
-.ag-theme-quartz-dark .bidbounty-dimmed-row,
-.ag-theme-quartz .bidbounty-dimmed-row {
-  opacity: 0.55 !important;
+/* Floor rows recede so attention stays on the active winner. */
+.ag-theme-quartz-dark .bidbounty-floor-row,
+.ag-theme-quartz .bidbounty-floor-row {
+  opacity: 0.4 !important;
+}
+
+.ag-theme-quartz-dark .bidbounty-floor-row .bidbounty-robot,
+.ag-theme-quartz .bidbounty-floor-row .bidbounty-robot {
+  filter: grayscale(0.7) saturate(0.65);
+}
+
+.bidbounty-winner-status {
+  filter: drop-shadow(0 0 7px rgba(245, 185, 74, 0.8));
 }
