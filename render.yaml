@@ -23,7 +23,6 @@ services:
         value: sandbox
       - key: PAYPAL_CLIENT_ID
         sync: false
-        value: sb
       - key: PAYPAL_CLIENT_SECRET
         sync: false
       - key: CORS_ORIGIN
@@ -60,4 +59,4 @@ services:
           name: bidbounty-backend
           property: host
       - key: VITE_PAYPAL_CLIENT_ID
-        value: sb
+        value: BAAY-TZ5IUiVwZT9k_cLVkDxiMzRK9wEIN8P-cr1tBFYhyzs7mw9gTnMpHEFld4sFxEcLTvqkBD-FedBNg

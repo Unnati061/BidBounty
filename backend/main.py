@@ -37,14 +37,8 @@ app.add_middleware(
 # PayPal Sandbox Configuration
 PAYPAL_ENV = os.getenv("PAYPAL_ENV", "sandbox")
 PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com" if PAYPAL_ENV == "sandbox" else "https://api-m.paypal.com"
-PAYPAL_CLIENT_ID = os.getenv(
-    "PAYPAL_CLIENT_ID",
-    "BAAY-TZ5IUiVwZT9k_cLVkDxiMzRK9wEIN8P-cr1tBFYhyzs7mw9gTnMpHEFld4sFxEcLTvqkBD-FedBNg"
-)
-PAYPAL_CLIENT_SECRET = os.getenv(
-    "PAYPAL_CLIENT_SECRET",
-    "EH2_NokBHom7lQItzBBfzi-iXik1s10GECCsRWqMFtXZK6FJgzB-EZWY_FPHej0I0RSt2gmG1mA-hhZx"
-)
+PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
+PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 
 # Cached token store
 _token_cache = {
@@ -253,9 +247,16 @@ async def get_paypal_bearer_token() -> str:
                 print(f"[PayPal Auth] Successfully obtained Sandbox Bearer token (expires in {expires_in}s)")
                 return token
             else:
-                print(f"[PayPal Auth] Sandbox returned {resp.status_code}: {resp.text}")
+                print(f"[PayPal Auth] Sandbox returned HTTP {resp.status_code}")
+                raise HTTPException(
+                    status_code=502,
+                    detail=f"PayPal Sandbox authentication failed (HTTP {resp.status_code}). Check the Sandbox app credentials."
+                )
+    except HTTPException:
+        raise
     except Exception as e:
-        print(f"[PayPal Auth Exception]: {e}")
+        print(f"[PayPal Auth Exception]: {type(e).__name__}")
+        raise HTTPException(status_code=503, detail="PayPal Sandbox is unreachable. Try again shortly.")
 
     fallback_token = f"MOCK_TOKEN_SBX_{uuid.uuid4().hex[:12]}"
     _token_cache["token"] = fallback_token
@@ -354,9 +355,16 @@ async def create_paypal_order(req: CreateOrderRequest):
                         "raw": data
                     }
                 else:
-                    print(f"[create-order error]: {res.status_code} {res.text}")
+                    print(f"[create-order error]: PayPal returned HTTP {res.status_code}")
+                    raise HTTPException(
+                        status_code=502,
+                        detail=f"PayPal Sandbox could not create the order (HTTP {res.status_code})."
+                    )
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"[create-order error]: {e}")
+            print(f"[create-order error]: {type(e).__name__}")
+            raise HTTPException(status_code=503, detail="PayPal Sandbox is unreachable. Try again shortly.")
 
     # Deterministic Mock Order ID for offline fallback
     mock_order_id = f"ORD-SBX-{uuid.uuid4().hex[:8].upper()}" if req.buyer_cap >= min(m["hardFloor"] for m in prod["merchants"].values()) else "ORD-SBX-LOWBALL1"

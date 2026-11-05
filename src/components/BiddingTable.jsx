@@ -7,6 +7,11 @@ import TypewriterThought from './TypewriterThought';
 import { calcMargin } from '../data/merchants';
 import { ArrowRight, Radio, Square } from 'lucide-react';
 
+const configuredApiHost = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = configuredApiHost
+  ? `${/^https?:\/\//i.test(configuredApiHost) ? '' : 'https://'}${configuredApiHost}`.replace(/\/$/, '')
+  : '';
+
 // Register AG Grid Community modules
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -269,8 +274,7 @@ const BiddingTable = ({
   }, [merchants]);
 
   // --------------------------------------------------------------------------
-  // Rule 3 & 5: Connect to SSE Endpoint with cap & selected product ID
-  // new EventSource(`http://localhost:8000/api/bounty/stream?cap=${cap}&product_id=${productId}`)
+  // Connect to the configured backend's SSE endpoint with cap and selected product.
   // --------------------------------------------------------------------------
   const connectSSE = (capValue, prodId) => {
     if (eventSourceRef.current) {
@@ -280,7 +284,8 @@ const BiddingTable = ({
 
     const cap = capValue ?? maxSpendCap;
     const activeProd = prodId || selectedProductId || 'sony_xm5';
-    const sseUrl = `http://localhost:8000/api/bounty/stream?cap=${cap}&product_id=${activeProd}`;
+    const query = new URLSearchParams({ cap: String(cap), product_id: activeProd });
+    const sseUrl = `${API_BASE_URL}/api/bounty/stream?${query}`;
     setSseStatus(`Connecting to ${sseUrl}...`);
 
     const es = new EventSource(sseUrl);
