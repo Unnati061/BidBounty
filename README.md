@@ -155,6 +155,9 @@ curl http://localhost:8000/api/health
 
 For the hosted demo, visit the [Render frontend](https://bidbounty-frontend.onrender.com). The backend health endpoint reports whether a Gemini key is configured; it never returns the key itself.
 
+### Demo Access Without a PayPal Sandbox Login
+The gold **PayPal** button opens the real PayPal Sandbox authorization flow and is the path to use when testing with a Sandbox buyer account. For a fast, login-free product demonstration, click the cyan **Authorize** button beside it. This starts the app's in-product demo authorization flow so judges can run the Gemini auction, settlement UI, and Lowball void scenario without logging in to PayPal. It is for demonstration only and is not a replacement for a buyer-approved PayPal authorization.
+
 ---
 
 ## Demo Walkthrough & Testing Scenarios
@@ -163,7 +166,7 @@ BidBounty features preset scenarios in the top navigation bar:
 
 1. **Happy Path — Multi-Agent Price Drop**:
    - Select the **Sony WH-1000XM5** with Max Spend Cap at **\$240.00**.
-   - Click the gold **PayPal** button to authorize with a sandbox personal account, or click the cyan **Authorize \$240.00** button for instant sandbox testing.
+   - Click the gold **PayPal** button to authorize with a Sandbox buyer account, or use the cyan **Authorize \$240.00** button for the login-free in-product demo flow.
    - Watch the 6-tick Gemini-guided bidding stream. The exact eligible bids and winner may vary because Gemini proposes merchant strategies at runtime; server guardrails reject any proposal outside the buyer cap, listing-price, or merchant-floor rules.
    - Notice the **Settlement Stepper**:
      - Step 1: Pre-authorized hold for the selected buyer cap.
