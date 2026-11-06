@@ -9,6 +9,13 @@
 
 **Live app:** [bidbounty-frontend.onrender.com](https://bidbounty-frontend.onrender.com)
 
+| Hackathon submission item | Link / status |
+| --- | --- |
+| Public source repository | [github.com/Unnati061/BidBounty](https://github.com/Unnati061/BidBounty) |
+| Open-source license | [MIT License](./LICENSE) — OSI-approved |
+| Functional demo | [BidBounty on Render](https://bidbounty-frontend.onrender.com) |
+| Backend health check | [bidbounty-backend.onrender.com/api/health](https://bidbounty-backend.onrender.com/api/health) |
+
 > **Elevator Pitch:** E-commerce today is fundamentally broken: buyers waste hours hunting coupon codes and comparing tabs, while retailers pay astronomical advertising fees for uncertain conversions. **BidBounty** flips the entire commerce paradigm through an **Autonomous Reverse-Checkout & Request-For-Quote (RFQ) Terminal**. Instead of browsing static prices, buyers declare their maximum spend cap and lock in a binding PayPal authorization hold. Autonomous merchant agents then compete live in a high-frequency descending auction to capture the guaranteed order without dropping below their private gross margins. Once a winning bid locks in, BidBounty automatically executes a server-guarded partial capture, instantly releases excess funds back to the buyer, and registers package tracking for complete PayPal Seller and Buyer Protection.
 
 ---
@@ -21,7 +28,7 @@
 
 ## AI Integration & Safety — Google Gemini
 
-When `GEMINI_API_KEY` is configured, each live RFQ begins with three server-side **Google Gemini** merchant-strategy evaluations—one for Apex, SoundWave, and Metro. Gemini receives only the product, retail baseline, buyer cap, merchant listing price, protected floor, and a merchant persona. It returns structured JSON containing a proposed target bid and a short customer-visible negotiation rationale, which appears in the AG Grid arena as the auction runs.
+When `GEMINI_API_KEY` is configured, each live RFQ begins with one server-side **Google Gemini** structured-output request for all three merchants—Apex, SoundWave, and Metro. Gemini receives only the product, retail baseline, buyer cap, merchant listing price, protected floor, and a merchant persona. It returns a proposed target bid and concise customer-visible negotiation rationale for each merchant, which appears in the AG Grid arena as the auction runs.
 
 Gemini proposes; the FastAPI backend decides. Before a proposal can affect the live stream, the backend rejects it unless the bid is below the listing price, at or above that merchant's protected floor, and at or below the buyer's authorized cap. Gemini has no access to PayPal credentials and cannot create, authorize, capture, void, or track a payment. PayPal settlement remains a server-enforced action after the auction winner is determined.
 
@@ -31,13 +38,13 @@ If Gemini is unavailable or produces invalid structured output, BidBounty labels
 
 ---
 
-## Sponsor Tracks Hit
+## PayPal, Sponsor, and Technology Integrations
 
 ### 1. PayPal Sandbox APIs (End-to-End Autonomous Settlement)
-BidBounty implements the entire lifecycle of PayPal's v2 REST APIs with **zero shortcuts**:
+BidBounty integrates PayPal's v2 Sandbox REST APIs for the complete authorization-to-fulfillment lifecycle:
 - **Authorize Intent (`POST /v2/checkout/orders`)**: Initializes orders with `intent: "AUTHORIZE"` bound to the buyer's maximum spend cap (e.g., \$240.00). The buyer guarantees liquidity without any upfront debit.
 - **Order Authorization (`POST /v2/checkout/orders/{id}/authorize`)**: Executed via the real `@paypal/react-paypal-js` modal. Locks an honor-period hold for the full amount and unlocks private RFQ quoting for merchant bots.
-- **Server-Enforced Partial Capture (`POST /v2/payments/authorizations/{id}/capture`)**: A backend server guardrail validates that `winning_bid <= buyer_cap`. It executes a partial capture for the exact winning price (e.g., \$223.50) with `final_capture: true`. PayPal automatically releases the remaining \$16.50 hold back to the buyer immediately in a single atomic transaction.
+- **Server-Enforced Partial Capture (`POST /v2/payments/authorizations/{id}/capture`)**: A backend server guardrail validates that `winning_bid <= buyer_cap`. It executes a partial capture for the exact validated winning price with `final_capture: true`, and calculates the release as `buyer_cap - winning_bid`.
 - **Instant Void Protection (`POST /v2/payments/authorizations/{id}/void`)**: If a buyer submits a lowball bounty below all merchant reserve margins (e.g., \$195.00), all merchant bots refuse, triggering an automatic void request. The buyer is charged \$0.00 with immediate hold release.
 - **Proof of Fulfillment (`POST /v2/checkout/orders/{id}/track`)**: Automatically registers tracking information (carrier: `FEDEX`, mock tracking number) with PayPal to maintain Seller Protection eligibility.
 
@@ -55,20 +62,27 @@ The live bidding terminal uses **AG Grid React** customized to match our dark `#
 To empower any third-party merchant to deploy an autonomous bidding bot:
 - Created [`merchant-webhook-openapi.yaml`](./merchant-webhook-openapi.yaml), a complete OpenAPI 3.0 specification defining the `POST /v1/bounty/evaluate` webhook contract.
 - External merchants receive incoming RFQ events (`bounty_id`, `product_id`, `buyer_cap`, `current_lowest_bid`) and respond with autonomous bid decisions (`bid_price`, `merchant_margin`, `status`).
-- Through APIMatic's CodeGen platform, merchants can generate idiomatic client SDKs in Python, TypeScript, Java, C#, and Go with automated documentation.
+- The OpenAPI document can be imported into APIMatic CodeGen to generate idiomatic Python, TypeScript, Java, C#, and Go SDKs with documentation.
 - Integrated a direct "View Merchant SDK & Docs (Powered by APIMatic)" portal directly inside the `MerchantStudio` UI.
 
-### 4. Channel3 (Live Verified Catalog Feeds)
-- Integrated dynamic product switching across 3 distinct consumer categories:
+### 4. Channel3 (Catalog-Oriented Product Experience)
+- The Channel3-oriented catalog model drives dynamic product switching across 3 distinct consumer categories:
   1. **Sony WH-1000XM5** (Retail: \$251.00 · Wholesale Base: \$200.00 · Default Cap: \$240.00)
   2. **Dell U3223QE 4K Monitor** (Retail: \$450.00 · Wholesale Base: \$380.00 · Default Cap: \$410.00)
   3. **Herman Miller Aeron** (Retail: \$1200.00 · Wholesale Base: \$950.00 · Default Cap: \$1050.00)
-- Endpoints (`GET /api/product` and `GET /api/bounty/stream`) anchor real-time agent valuations to verified retail baselines.
+- `GET /api/product` and `GET /api/bounty/stream` provide the product context used by the auction. The repository ships seeded catalog baselines so the demo is reproducible without a third-party catalog key.
 
 ### 5. Render (Production Deployment)
 - Render hosts the public [Vite + React frontend](https://bidbounty-frontend.onrender.com) and the FastAPI/SSE backend.
 - [`render.yaml`](./render.yaml) declares both services, production build commands, health checks, frontend-to-backend routing, and server-only secret placeholders for PayPal and Gemini.
 - Set `GEMINI_API_KEY` only on the Render backend service. It is never exposed to the browser or committed to this repository.
+
+### Core Technologies
+- **Frontend:** React 19, Vite, Tailwind CSS, Lucide React
+- **Live terminal:** AG Grid React, custom renderers, Server-Sent Events (SSE)
+- **Backend:** Python, FastAPI, Pydantic, HTTPX, `sse-starlette`
+- **Payments:** PayPal JavaScript SDK and PayPal v2 Sandbox REST APIs
+- **AI:** Google Gemini structured JSON output with server-side validation and a bounded fallback
 
 ---
 
@@ -89,6 +103,7 @@ cd BidBounty
 Copy `.env.example` to `.env` in the root directory:
 ```bash
 cp .env.example .env
+# Windows PowerShell: Copy-Item .env.example .env
 ```
 Fill in your PayPal Sandbox Developer credentials:
 ```env
@@ -101,6 +116,7 @@ GEMINI_API_KEY=your_google_ai_studio_api_key
 GEMINI_MODEL=gemini-2.5-flash
 
 VITE_PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
+VITE_API_BASE_URL=http://localhost:8000
 ```
 
 ### 3. Start the FastAPI Backend
@@ -128,6 +144,17 @@ npm run dev
 ```
 Open **[http://localhost:5173](http://localhost:5173)** in your browser.
 
+### 5. Verify the Build and Services
+```bash
+# Frontend production build
+npm run build
+
+# Backend health check (with the backend running)
+curl http://localhost:8000/api/health
+```
+
+For the hosted demo, visit the [Render frontend](https://bidbounty-frontend.onrender.com). The backend health endpoint reports whether a Gemini key is configured; it never returns the key itself.
+
 ---
 
 ## Demo Walkthrough & Testing Scenarios
@@ -137,12 +164,13 @@ BidBounty features preset scenarios in the top navigation bar:
 1. **Happy Path — Multi-Agent Price Drop**:
    - Select the **Sony WH-1000XM5** with Max Spend Cap at **\$240.00**.
    - Click the gold **PayPal** button to authorize with a sandbox personal account, or click the cyan **Authorize \$240.00** button for instant sandbox testing.
-   - Watch the 6-tick descending bidding stream. MetroBot leads first at \$236, WaveBot undercuts to \$231, Metro halts at \$229 floor, Wave halts at \$224 floor, and ApexBot wins at **\$223.50**.
+   - Watch the 6-tick Gemini-guided bidding stream. The exact eligible bids and winner may vary because Gemini proposes merchant strategies at runtime; server guardrails reject any proposal outside the buyer cap, listing-price, or merchant-floor rules.
    - Notice the **Settlement Stepper**:
-     - Step 1: Pre-authorized hold for \$240.00.
-     - Step 2: Partial capture executed for \$223.50; excess \$16.50 released.
-     - Step 3: Package tracking registered (`SIM-SBX-443844607820`).
-   - "Deal Locked" celebration toast appears with savings count-up to \$27.50.
+     - Step 1: Pre-authorized hold for the selected buyer cap.
+     - Step 2: Partial capture for the actual validated winner.
+     - Step 3: The stepper and Deal Locked toast calculate the excess release and savings from that same live capture amount.
+   - Package tracking is registered with the sandbox tracking number `SIM-SBX-443844607820`.
+   - "Deal Locked" displays live capture, release, and savings values for Sony, Dell, and Aeron.
 
 2. **Lowball Path — Automatic Void**:
    - Toggle the **Scenario** switch to **Lowball**.
@@ -196,6 +224,10 @@ BidBounty/
 
 ---
 
-## License & Acknowledgments
+## License
 
-Built for the **PayPal AI Hackathon 2026**. Special thanks to the teams at **PayPal**, **AG Grid**, **APIMatic**, and **Channel3** for the developer platforms and APIs that made this project possible.
+This project is released under the [MIT License](./LICENSE), an OSI-approved open-source license.
+
+## Acknowledgments
+
+Built for the **PayPal AI Hackathon 2026**. BidBounty uses PayPal, Google Gemini, AG Grid, APIMatic, Channel3-oriented catalog data, and Render as described above.
