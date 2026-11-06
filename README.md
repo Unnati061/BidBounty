@@ -65,12 +65,14 @@ To empower any third-party merchant to deploy an autonomous bidding bot:
 - The OpenAPI document can be imported into APIMatic CodeGen to generate idiomatic Python, TypeScript, Java, C#, and Go SDKs with documentation.
 - Integrated a direct "View Merchant SDK & Docs (Powered by APIMatic)" portal directly inside the `MerchantStudio` UI.
 
-### 4. Channel3 (Catalog-Oriented Product Experience)
-- The Channel3-oriented catalog model drives dynamic product switching across 3 distinct consumer categories:
+### 4. Channel3 (Live Catalog Enrichment)
+- When `CHANNEL3_API_KEY` is configured on the backend, BidBounty calls Channel3's server-side `POST /v1/search` endpoint for the selected product and passes the live match metadata into the auction/AI context. The stable seeded merchant floors and visible demo economics remain authoritative, so the recorded demo stays reproducible.
+- If the key is absent or Channel3 is unavailable, the backend safely reports `catalog_source: seeded_fallback` and continues using the bundled catalog.
+- The catalog model supports dynamic product switching across 3 distinct consumer categories:
   1. **Sony WH-1000XM5** (Retail: \$251.00 · Wholesale Base: \$200.00 · Default Cap: \$240.00)
   2. **Dell U3223QE 4K Monitor** (Retail: \$450.00 · Wholesale Base: \$380.00 · Default Cap: \$410.00)
   3. **Herman Miller Aeron** (Retail: \$1200.00 · Wholesale Base: \$950.00 · Default Cap: \$1050.00)
-- `GET /api/product` and `GET /api/bounty/stream` provide the product context used by the auction. The repository ships seeded catalog baselines so the demo is reproducible without a third-party catalog key.
+- `GET /api/product` and `GET /api/bounty/stream` provide the product context used by the auction. The frontend contract is unchanged; Channel3 is entirely backend-side.
 
 ### 5. Render (Production Deployment)
 - Render hosts the public [Vite + React frontend](https://bidbounty-frontend.onrender.com) and the FastAPI/SSE backend.
@@ -117,6 +119,9 @@ GEMINI_MODEL=gemini-2.5-flash
 
 VITE_PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
 VITE_API_BASE_URL=http://localhost:8000
+
+# Optional: enables live Channel3 search enrichment; leave blank for seeded fallback
+CHANNEL3_API_KEY=your_channel3_api_key
 ```
 
 ### 3. Start the FastAPI Backend

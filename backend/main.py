@@ -48,6 +48,18 @@ GEMINI_QUOTA_FALLBACK_MODEL = "gemini-flash-lite-latest"
 GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
 GEMINI_TIMEOUT_SECONDS = 8.0
 
+# Optional server-side Channel3 catalog enrichment. The seeded catalog remains
+# authoritative for visible prices/floors so the recorded demo stays stable.
+CHANNEL3_API_KEY = os.getenv("CHANNEL3_API_KEY", "")
+CHANNEL3_API_BASE = os.getenv("CHANNEL3_API_BASE", "https://api.trychannel3.com").rstrip("/")
+CHANNEL3_TIMEOUT_SECONDS = 8.0
+CHANNEL3_QUERIES = {
+    "sony_xm5": "Sony WH-1000XM5 wireless headphones",
+    "dell_4k": "Dell U3223QE 4K monitor",
+    "herman_miller": "Herman Miller Aeron chair",
+}
+_channel3_cache = {}
+
 # Cached token store
 _token_cache = {
     "token": None,
@@ -608,6 +620,45 @@ async def register_paypal_tracking(req: TrackOrderRequest):
 # 4. CHANNEL3 & SSE STREAM ENDPOINTS (MULTI-PRODUCT SUPPORT)
 # ============================================================================
 
+async def enrich_with_channel3(prod_key: str, product: dict) -> dict:
+    """Fetch live Channel3 context without changing the stable demo economics."""
+    base = {**product, "catalog_source": "seeded_fallback", "channel3_live": False}
+    if not CHANNEL3_API_KEY:
+        return base
+
+    cached = _channel3_cache.get(prod_key)
+    if cached and cached["expires_at"] > time.time():
+        return {**base, **cached["context"]}
+
+    query = CHANNEL3_QUERIES.get(prod_key, product.get("title", prod_key))
+    try:
+        async with httpx.AsyncClient(timeout=CHANNEL3_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                f"{CHANNEL3_API_BASE}/v1/search",
+                headers={"x-api-key": CHANNEL3_API_KEY, "content-type": "application/json"},
+                json={"query": query, "limit": 5},
+            )
+            response.raise_for_status()
+            payload = response.json()
+        results = payload.get("products") or payload.get("results") or payload.get("data") or []
+        if isinstance(results, dict):
+            results = results.get("products") or results.get("items") or [results]
+        if not isinstance(results, list):
+            results = []
+        first = results[0] if results and isinstance(results[0], dict) else {}
+        context = {
+            "catalog_source": "channel3",
+            "channel3_live": True,
+            "channel3_result_count": len(results),
+            "channel3_match": first.get("title") or first.get("name") or query,
+            "channel3_product_id": first.get("id") or first.get("product_id"),
+        }
+        _channel3_cache[prod_key] = {"expires_at": time.time() + 300, "context": context}
+        return {**base, **context}
+    except (httpx.HTTPError, ValueError, TypeError) as exc:
+        print(f"[Channel3 unavailable] {type(exc).__name__}")
+        return base
+
 @app.get("/api/health")
 async def health():
     return {
@@ -618,6 +669,7 @@ async def health():
         "has_paypal_secret": bool(PAYPAL_CLIENT_SECRET),
         "gemini_enabled": bool(GEMINI_API_KEY),
         "gemini_model": GEMINI_MODEL if GEMINI_API_KEY else None,
+        "channel3_enabled": bool(CHANNEL3_API_KEY),
         "supported_products": list(PRODUCTS_CATALOG.keys())
     }
 
@@ -631,7 +683,7 @@ async def get_product(product_id: str = Query("sony_xm5", description="Product I
     - herman_miller (Herman Miller Aeron: Retail $1200, Wholesale $950)
     """
     prod_key = normalize_product_id(product_id)
-    prod = PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"])
+    prod = await enrich_with_channel3(prod_key, PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"]))
     return {
         **prod,
         "seeded_merchants": list(prod["merchants"].values())
@@ -791,7 +843,7 @@ async def generate_ai_bounty_stream(
 ) -> AsyncGenerator[str, None]:
     """Run a Gemini-guided auction. Every model proposal is validated before it affects a bid."""
     prod_key = normalize_product_id(product_id)
-    product = PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"])
+    product = await enrich_with_channel3(prod_key, PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"]))
     merchants = product["merchants"]
     cost = product["wholesale_cost"]
 
@@ -950,7 +1002,7 @@ async def generate_bounty_stream(
     - Lowball: If buyer_cap < min(floors), halts bots with BELOW_FLOOR_MARGIN refusal.
     """
     prod_key = normalize_product_id(product_id)
-    prod = PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"])
+    prod = await enrich_with_channel3(prod_key, PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"]))
     merchants = prod["merchants"]
     cost = prod["wholesale_cost"]
     floors = {k: v["hardFloor"] for k, v in merchants.items()}

@@ -29,6 +29,8 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-2.5-flash
+      - key: CHANNEL3_API_KEY
+        sync: false
       - key: CORS_ORIGIN
         value: "*"
 
