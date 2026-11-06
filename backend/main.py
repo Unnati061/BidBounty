@@ -719,7 +719,10 @@ async def _request_gemini_strategy(merchant: dict, product: dict, buyer_cap: flo
         "contents": [{"role": "user", "parts": [{"text": prompt}]}],
         "generationConfig": {
             "temperature": 0.35,
-            "maxOutputTokens": 140,
+            # Gemini 2.5 Flash otherwise spends this small response budget on
+            # internal thinking, which can truncate the structured JSON.
+            "thinkingConfig": {"thinkingBudget": 0},
+            "maxOutputTokens": 256,
             "responseMimeType": "application/json",
             "responseJsonSchema": response_schema
         }
