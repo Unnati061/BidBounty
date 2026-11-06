@@ -25,6 +25,8 @@ When `GEMINI_API_KEY` is configured, each live RFQ begins with three server-side
 
 Gemini proposes; the FastAPI backend decides. Before a proposal can affect the live stream, the backend rejects it unless the bid is below the listing price, at or above that merchant's protected floor, and at or below the buyer's authorized cap. Gemini has no access to PayPal credentials and cannot create, authorize, capture, void, or track a payment. PayPal settlement remains a server-enforced action after the auction winner is determined.
 
+For the **Lowball** scenario, Gemini generates a customer-visible explanation for each merchant's refusal. It cannot change the outcome: FastAPI deterministically verifies that the buyer cap is below every protected floor, then voids the PayPal authorization. This keeps payment release and margin protection non-negotiable while still making the agent reasoning transparent.
+
 If Gemini is unavailable or produces invalid structured output, BidBounty labels and uses a safe, bounded fallback strategy so the functional demo remains available. The fallback is never presented as an AI-generated decision.
 
 ---

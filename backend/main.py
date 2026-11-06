@@ -1016,12 +1016,31 @@ async def generate_bounty_stream(
         ]
         yield json.dumps({
             "tick": 0,
-            "stage": "evaluating",
+            "stage": "ai_lowball_evaluating" if GEMINI_API_KEY else "evaluating",
             "is_complete": False,
             "lowest_bid": min(m["listingPrice"] for m in merchants.values()),
             "merchants": tick_0,
-            "product_id": prod_key
+            "product_id": prod_key,
+            "ai_mode": "gemini" if GEMINI_API_KEY else "deterministic",
+            "ai_model": GEMINI_MODEL if GEMINI_API_KEY else None
         })
+
+        # Gemini may explain a refusal, but it cannot change the lowball
+        # decision: the server has already proved the cap is below every floor.
+        lowball_messages = {
+            merchant_id: (
+                f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floor:.2f} hard floor "
+                f"({calc_margin(floor, cost)}% minimum margin)."
+            )
+            for merchant_id, floor in floors.items()
+        }
+        lowball_ai_model = None
+        if GEMINI_API_KEY:
+            raw_lowball_strategies, lowball_ai_model = await _request_gemini_strategies(merchants, prod, buyer_cap)
+            for merchant_id, strategy in raw_lowball_strategies.items():
+                rationale = str(strategy.get("rationale", "")).strip()
+                if strategy.get("action") == "decline" and 0 < len(rationale) <= 220:
+                    lowball_messages[merchant_id] = rationale
 
         await asyncio.sleep(1.5)
         if await request.is_disconnected():
@@ -1039,8 +1058,9 @@ async def generate_bounty_stream(
                 "state": "floor",
                 "status": "BELOW_FLOOR_MARGIN",
                 "statusLabel": "BELOW_FLOOR_MARGIN",
-                "thought": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['apex']:.2f} hard floor ({calc_margin(floors['apex'], cost)}% min margin).",
-                "reasoning": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['apex']:.2f} hard floor ({calc_margin(floors['apex'], cost)}% min margin)."
+                "thought": lowball_messages["apex"],
+                "reasoning": lowball_messages["apex"],
+                "aiGenerated": lowball_messages["apex"] != f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['apex']:.2f} hard floor ({calc_margin(floors['apex'], cost)}% minimum margin)."
             },
             {
                 **merchants["wave"],
@@ -1053,8 +1073,9 @@ async def generate_bounty_stream(
                 "state": "floor",
                 "status": "BELOW_FLOOR_MARGIN",
                 "statusLabel": "BELOW_FLOOR_MARGIN",
-                "thought": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['wave']:.2f} hard floor ({calc_margin(floors['wave'], cost)}% min margin).",
-                "reasoning": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['wave']:.2f} hard floor ({calc_margin(floors['wave'], cost)}% min margin)."
+                "thought": lowball_messages["wave"],
+                "reasoning": lowball_messages["wave"],
+                "aiGenerated": lowball_messages["wave"] != f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['wave']:.2f} hard floor ({calc_margin(floors['wave'], cost)}% minimum margin)."
             },
             {
                 **merchants["metro"],
@@ -1067,8 +1088,9 @@ async def generate_bounty_stream(
                 "state": "floor",
                 "status": "BELOW_FLOOR_MARGIN",
                 "statusLabel": "BELOW_FLOOR_MARGIN",
-                "thought": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['metro']:.2f} hard floor ({calc_margin(floors['metro'], cost)}% min margin).",
-                "reasoning": f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['metro']:.2f} hard floor ({calc_margin(floors['metro'], cost)}% min margin)."
+                "thought": lowball_messages["metro"],
+                "reasoning": lowball_messages["metro"],
+                "aiGenerated": lowball_messages["metro"] != f"Refused: Buyer ${buyer_cap:.2f} cap is below our ${floors['metro']:.2f} hard floor ({calc_margin(floors['metro'], cost)}% minimum margin)."
             }
         ]
         yield json.dumps({
@@ -1078,7 +1100,9 @@ async def generate_bounty_stream(
             "void_authorization": True,
             "lowest_bid": None,
             "merchants": tick_1,
-            "product_id": prod_key
+            "product_id": prod_key,
+            "ai_mode": "gemini" if lowball_ai_model else "safe_fallback",
+            "ai_model": lowball_ai_model
         })
         return
 
