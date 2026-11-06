@@ -5,7 +5,7 @@
 [![React](https://img.shields.io/badge/React%2019-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://react.dev)
 [![AG Grid](https://img.shields.io/badge/AG%20Grid-Custom%20Renderers-E0234E?style=for-the-badge&logo=aggrid&logoColor=white)](https://ag-grid.com)
 [![APIMatic](https://img.shields.io/badge/APIMatic-OpenAPI%20Spec-4A90E2?style=for-the-badge)](https://www.apimatic.io)
-[![Channel3](https://img.shields.io/badge/Channel3-Live%20Feed-10B981?style=for-the-badge)](https://channel3.tv)
+[![Channel3](https://img.shields.io/badge/Channel3-Live%20Catalog-10B981?style=for-the-badge)](https://www.trychannel3.com/developers/)
 
 **Live app:** [bidbounty-frontend.onrender.com](https://bidbounty-frontend.onrender.com)
 
@@ -68,6 +68,8 @@ To empower any third-party merchant to deploy an autonomous bidding bot:
 ### 4. Channel3 (Live Catalog Enrichment)
 - When `CHANNEL3_API_KEY` is configured on the backend, BidBounty calls Channel3's server-side `POST /v1/search` endpoint for the selected product and passes the live match metadata into the auction/AI context. The stable seeded merchant floors and visible demo economics remain authoritative, so the recorded demo stays reproducible.
 - If the key is absent or Channel3 is unavailable, the backend safely reports `catalog_source: seeded_fallback` and continues using the bundled catalog.
+- To enable it locally, set `CHANNEL3_API_KEY` in `.env`. In Render, add the same key to the **bidbounty-backend** service under Environment Variables; it must remain server-side and is never exposed to the browser.
+- The backend health response includes `channel3_enabled`, and `/api/product?product_id=sony_xm5` exposes `catalog_source`, `channel3_live`, and live-match metadata for verification.
 - The catalog model supports dynamic product switching across 3 distinct consumer categories:
   1. **Sony WH-1000XM5** (Retail: \$251.00 · Wholesale Base: \$200.00 · Default Cap: \$240.00)
   2. **Dell U3223QE 4K Monitor** (Retail: \$450.00 · Wholesale Base: \$380.00 · Default Cap: \$410.00)
@@ -158,7 +160,7 @@ npm run build
 curl http://localhost:8000/api/health
 ```
 
-For the hosted demo, visit the [Render frontend](https://bidbounty-frontend.onrender.com). The backend health endpoint reports whether a Gemini key is configured; it never returns the key itself.
+For the hosted demo, visit the [Render frontend](https://bidbounty-frontend.onrender.com). The backend health endpoint reports whether Gemini and Channel3 are configured; it never returns either key.
 
 ### Demo Access Without a PayPal Sandbox Login
 The gold **PayPal** button opens the real PayPal Sandbox authorization flow and is the path to use when testing with a Sandbox buyer account. For a fast, login-free product demonstration, click the cyan **Authorize** button beside it. This starts the app's in-product demo authorization flow so judges can run the Gemini auction, settlement UI, and Lowball void scenario without logging in to PayPal. It is for demonstration only and is not a replacement for a buyer-approved PayPal authorization.
@@ -238,4 +240,4 @@ This project is released under the [MIT License](./LICENSE), an OSI-approved ope
 
 ## Acknowledgments
 
-Built for the **PayPal AI Hackathon 2026**. BidBounty uses PayPal, Google Gemini, AG Grid, APIMatic, Channel3-oriented catalog data, and Render as described above.
+Built for the **PayPal AI Hackathon 2026**. BidBounty uses PayPal, Google Gemini, AG Grid, APIMatic, optional live Channel3 catalog enrichment with a seeded fallback, and Render as described above.
