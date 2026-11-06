@@ -19,6 +19,16 @@
 
 ---
 
+## AI Integration & Safety — Google Gemini
+
+When `GEMINI_API_KEY` is configured, each live RFQ begins with three server-side **Google Gemini** merchant-strategy evaluations—one for Apex, SoundWave, and Metro. Gemini receives only the product, retail baseline, buyer cap, merchant listing price, protected floor, and a merchant persona. It returns structured JSON containing a proposed target bid and a short customer-visible negotiation rationale, which appears in the AG Grid arena as the auction runs.
+
+Gemini proposes; the FastAPI backend decides. Before a proposal can affect the live stream, the backend rejects it unless the bid is below the listing price, at or above that merchant's protected floor, and at or below the buyer's authorized cap. Gemini has no access to PayPal credentials and cannot create, authorize, capture, void, or track a payment. PayPal settlement remains a server-enforced action after the auction winner is determined.
+
+If Gemini is unavailable or produces invalid structured output, BidBounty labels and uses a safe, bounded fallback strategy so the functional demo remains available. The fallback is never presented as an AI-generated decision.
+
+---
+
 ## Sponsor Tracks Hit
 
 ### 1. PayPal Sandbox APIs (End-to-End Autonomous Settlement)
@@ -53,6 +63,11 @@ To empower any third-party merchant to deploy an autonomous bidding bot:
   3. **Herman Miller Aeron** (Retail: \$1200.00 · Wholesale Base: \$950.00 · Default Cap: \$1050.00)
 - Endpoints (`GET /api/product` and `GET /api/bounty/stream`) anchor real-time agent valuations to verified retail baselines.
 
+### 5. Render (Production Deployment)
+- Render hosts the public [Vite + React frontend](https://bidbounty-frontend.onrender.com) and the FastAPI/SSE backend.
+- [`render.yaml`](./render.yaml) declares both services, production build commands, health checks, frontend-to-backend routing, and server-only secret placeholders for PayPal and Gemini.
+- Set `GEMINI_API_KEY` only on the Render backend service. It is never exposed to the browser or committed to this repository.
+
 ---
 
 ## Quickstart & Local Setup
@@ -78,6 +93,10 @@ Fill in your PayPal Sandbox Developer credentials:
 PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
 PAYPAL_CLIENT_SECRET=your_paypal_sandbox_client_secret
 PAYPAL_ENV=sandbox
+
+# Required for Gemini-guided merchant strategies. Keep this server-side.
+GEMINI_API_KEY=your_google_ai_studio_api_key
+GEMINI_MODEL=gemini-2.5-flash
 
 VITE_PAYPAL_CLIENT_ID=your_paypal_sandbox_client_id
 ```
@@ -146,7 +165,7 @@ BidBounty/
 ├── docs/
 │   └── architecture.png            # System architecture diagram
 ├── backend/
-│   ├── main.py                     # FastAPI app: PayPal v2, Channel3, SSE generator
+│   ├── main.py                     # FastAPI app: PayPal v2, Gemini guardrails, SSE generator
 │   └── requirements.txt            # Python dependencies
 ├── src/
 │   ├── components/

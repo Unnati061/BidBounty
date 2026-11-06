@@ -264,6 +264,7 @@ const BiddingTable = ({
   const [sseConnected, setSseConnected] = useState(false);
   const [sseStatus, setSseStatus] = useState('Idle');
   const [currentTick, setCurrentTick] = useState(0);
+  const [aiMode, setAiMode] = useState(null);
 
   // Maintain local merchants state synchronized with SSE transactions
   const [liveMerchants, setLiveMerchants] = useState(merchants);
@@ -287,6 +288,7 @@ const BiddingTable = ({
     const query = new URLSearchParams({ cap: String(cap), product_id: activeProd });
     const sseUrl = `${API_BASE_URL}/api/bounty/stream?${query}`;
     setSseStatus(`Connecting to ${sseUrl}...`);
+    setAiMode(null);
 
     const es = new EventSource(sseUrl);
     eventSourceRef.current = es;
@@ -300,6 +302,10 @@ const BiddingTable = ({
       try {
         const payload = JSON.parse(event.data);
         const incomingRows = payload.merchants;
+
+        if (payload.ai_mode) {
+          setAiMode(payload.ai_mode);
+        }
 
         if (incomingRows && Array.isArray(incomingRows)) {
           // Feed streamed JSON directly into AG Grid using api.applyTransaction
@@ -483,7 +489,11 @@ const BiddingTable = ({
           {currentTick > 0 && <span>· Tick {currentTick}/6</span>}
         </div>
         <div className="text-[10px] text-white/30">
-          Target: Channel3 · AG Grid Native Row Reorder
+          {aiMode === 'gemini'
+            ? 'Gemini-guided bids · server guardrails active'
+            : aiMode === 'safe_fallback'
+            ? 'Safe fallback strategy · server guardrails active'
+            : 'Target: Channel3 · AG Grid Native Row Reorder'}
         </div>
       </div>
 

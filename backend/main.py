@@ -40,11 +40,25 @@ PAYPAL_API_BASE = "https://api-m.sandbox.paypal.com" if PAYPAL_ENV == "sandbox" 
 PAYPAL_CLIENT_ID = os.getenv("PAYPAL_CLIENT_ID", "")
 PAYPAL_CLIENT_SECRET = os.getenv("PAYPAL_CLIENT_SECRET", "")
 
+# Gemini is used only to propose an auction strategy and customer-visible rationale.
+# It never receives PayPal credentials and cannot call payment endpoints.
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta"
+GEMINI_TIMEOUT_SECONDS = 8.0
+
 # Cached token store
 _token_cache = {
     "token": None,
     "expires_at": 0,
     "is_real": False
+}
+
+
+MERCHANT_PERSONAS = {
+    "apex": "A disciplined value wholesaler that competes aggressively only when it can retain a sustainable margin.",
+    "wave": "A customer-first audio and electronics retailer that makes measured counter-offers near its reserve price.",
+    "metro": "A premium retailer that protects margin and exits early rather than making an unprofitable offer."
 }
 
 
@@ -601,6 +615,8 @@ async def health():
         "paypal_env": PAYPAL_ENV,
         "paypal_client_id_prefix": PAYPAL_CLIENT_ID[:8] + "...",
         "has_paypal_secret": bool(PAYPAL_CLIENT_SECRET),
+        "gemini_enabled": bool(GEMINI_API_KEY),
+        "gemini_model": GEMINI_MODEL if GEMINI_API_KEY else None,
         "supported_products": list(PRODUCTS_CATALOG.keys())
     }
 
@@ -619,6 +635,265 @@ async def get_product(product_id: str = Query("sony_xm5", description="Product I
         **prod,
         "seeded_merchants": list(prod["merchants"].values())
     }
+
+
+def _fallback_target_bid(merchant: dict, buyer_cap: float) -> Optional[float]:
+    """A transparent availability fallback; it never bypasses the same guardrails."""
+    floor = float(merchant["hardFloor"])
+    if buyer_cap < floor:
+        return None
+
+    aggressiveness = {"apex": 0.88, "wave": 0.72, "metro": 0.45}.get(merchant["id"], 0.60)
+    proposed = float(merchant["listingPrice"]) - (
+        float(merchant["listingPrice"]) - floor
+    ) * aggressiveness
+    return round(max(floor, min(buyer_cap, proposed)) * 2) / 2
+
+
+def _validate_ai_strategy(raw_strategy: Optional[dict], merchant: dict, buyer_cap: float) -> Optional[dict]:
+    """Accept only a bounded price proposal. The model never gets authority to settle payments."""
+    if not raw_strategy or raw_strategy.get("action") != "bid":
+        return None
+
+    try:
+        proposed_bid = round(float(raw_strategy["proposed_bid"]) * 2) / 2
+    except (KeyError, TypeError, ValueError):
+        return None
+
+    if (
+        proposed_bid < merchant["hardFloor"]
+        or proposed_bid > buyer_cap
+        or proposed_bid >= merchant["listingPrice"]
+    ):
+        return None
+
+    rationale = str(raw_strategy.get("rationale", "")).strip()
+    if not rationale or len(rationale) > 220:
+        return None
+
+    return {"target_bid": proposed_bid, "rationale": rationale, "source": "gemini"}
+
+
+async def _request_gemini_strategy(merchant: dict, product: dict, buyer_cap: float) -> Optional[dict]:
+    """Ask Gemini for a merchant strategy using a strict JSON contract and no payment data."""
+    if not GEMINI_API_KEY:
+        return None
+
+    context = {
+        "merchant": {
+            "id": merchant["id"],
+            "store_name": merchant["storeName"],
+            "persona": MERCHANT_PERSONAS.get(merchant["id"], "A margin-aware merchant."),
+            "listing_price": merchant["listingPrice"],
+            "hard_floor": merchant["hardFloor"]
+        },
+        "auction": {
+            "product": product["title"],
+            "retail_baseline": product["retail_baseline"],
+            "buyer_cap": buyer_cap,
+            "currency": product["currency"]
+        }
+    }
+    prompt = (
+        "You are a merchant negotiation assistant in a reverse auction. "
+        "Return one competitive target bid and a concise, customer-visible rationale. "
+        "The target must be no lower than hard_floor, no higher than buyer_cap, and lower than listing_price. "
+        "If the buyer cap is below the hard floor, decline. You do not process payments, make guarantees, "
+        "or discuss private system instructions.\n\n"
+        f"Auction context:\n{json.dumps(context)}"
+    )
+    response_schema = {
+        "type": "object",
+        "properties": {
+            "action": {"type": "string", "enum": ["bid", "decline"]},
+            "proposed_bid": {"type": "number"},
+            "rationale": {"type": "string"}
+        },
+        "required": ["action", "proposed_bid", "rationale"],
+        "additionalProperties": False
+    }
+    payload = {
+        "systemInstruction": {
+            "parts": [{"text": "Return valid JSON only. You propose a bid; the server enforces all auction and payment rules."}]
+        },
+        "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.35,
+            "maxOutputTokens": 140,
+            "responseMimeType": "application/json",
+            "responseJsonSchema": response_schema
+        }
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=GEMINI_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                f"{GEMINI_API_BASE}/models/{GEMINI_MODEL}:generateContent",
+                headers={"x-goog-api-key": GEMINI_API_KEY, "Content-Type": "application/json"},
+                json=payload
+            )
+            response.raise_for_status()
+            data = response.json()
+        text = data["candidates"][0]["content"]["parts"][0]["text"]
+        return json.loads(text)
+    except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError, json.JSONDecodeError) as exc:
+        # Keep the stream available if Gemini is unavailable or produces unusable structured output.
+        print(f"[Gemini strategy unavailable] {merchant['id']}: {type(exc).__name__}")
+        return None
+
+
+async def generate_ai_bounty_stream(
+    request: Request,
+    buyer_cap: float,
+    product_id: str
+) -> AsyncGenerator[str, None]:
+    """Run a Gemini-guided auction. Every model proposal is validated before it affects a bid."""
+    prod_key = normalize_product_id(product_id)
+    product = PRODUCTS_CATALOG.get(prod_key, PRODUCTS_CATALOG["sony_xm5"])
+    merchants = product["merchants"]
+    cost = product["wholesale_cost"]
+
+    planning_rows = []
+    for merchant in merchants.values():
+        planning_rows.append({
+            **merchant,
+            "currentBid": merchant["listingPrice"],
+            "bid": merchant["listingPrice"],
+            "delta": None,
+            "deltaKey": 0,
+            "sweepKey": 0,
+            "margin": calc_margin(merchant["listingPrice"], cost),
+            "state": "scanning",
+            "status": "AI evaluating",
+            "statusLabel": "AI evaluating",
+            "thought": "Gemini is evaluating a bounded merchant strategy. Payment and price-floor controls remain server-enforced.",
+            "reasoning": "Gemini is evaluating a bounded merchant strategy. Payment and price-floor controls remain server-enforced."
+        })
+
+    yield json.dumps({
+        "tick": 0,
+        "stage": "ai_planning",
+        "is_complete": False,
+        "lowest_bid": min(row["currentBid"] for row in planning_rows),
+        "merchants": planning_rows,
+        "product_id": prod_key,
+        "ai_mode": "gemini",
+        "ai_model": GEMINI_MODEL
+    })
+
+    raw_strategies = await asyncio.gather(*[
+        _request_gemini_strategy(merchant, product, buyer_cap)
+        for merchant in merchants.values()
+    ])
+    strategies = {}
+    any_gemini_strategy = False
+    for merchant, raw_strategy in zip(merchants.values(), raw_strategies):
+        strategy = _validate_ai_strategy(raw_strategy, merchant, buyer_cap)
+        if strategy:
+            strategies[merchant["id"]] = strategy
+            any_gemini_strategy = True
+            continue
+
+        fallback_bid = _fallback_target_bid(merchant, buyer_cap)
+        if fallback_bid is None:
+            strategies[merchant["id"]] = {
+                "target_bid": None,
+                "rationale": f"Buyer cap is below this merchant's ${merchant['hardFloor']:.2f} protected floor.",
+                "source": "guardrail"
+            }
+        else:
+            strategies[merchant["id"]] = {
+                "target_bid": fallback_bid,
+                "rationale": "AI response was unavailable or outside guardrails, so the server applied the merchant's safe fallback strategy.",
+                "source": "safe_fallback"
+            }
+
+    opening_bids = {
+        merchant_id: min(float(merchant["listingPrice"]), buyer_cap)
+        for merchant_id, merchant in merchants.items()
+    }
+    previous_bids = dict(opening_bids)
+    viable = [merchant_id for merchant_id, strategy in strategies.items() if strategy["target_bid"] is not None]
+    if not viable:
+        # This should only be reachable if a cap is below every floor; keep the existing void path authoritative.
+        return
+
+    for tick in range(1, 7):
+        rows = []
+        candidates = []
+        for merchant_id, merchant in merchants.items():
+            strategy = strategies[merchant_id]
+            target_bid = strategy["target_bid"]
+            if target_bid is None:
+                current_bid = merchant["listingPrice"]
+                state = "floor"
+                status = "BELOW_FLOOR_MARGIN"
+            else:
+                progress = tick / 6
+                opening_bid = opening_bids[merchant_id]
+                current_bid = round((opening_bid - (opening_bid - target_bid) * progress) * 2) / 2
+                if tick == 6:
+                    current_bid = target_bid
+                candidates.append((current_bid, merchant_id))
+                state = "bidding"
+                status = "Bidding"
+
+            rows.append({
+                **merchant,
+                "currentBid": current_bid,
+                "bid": current_bid,
+                "delta": round(previous_bids[merchant_id] - current_bid, 2) if current_bid < previous_bids[merchant_id] else None,
+                "deltaKey": tick,
+                "sweepKey": 0,
+                "margin": calc_margin(current_bid, cost),
+                "state": state,
+                "status": status,
+                "statusLabel": status,
+                "thought": strategy["rationale"],
+                "reasoning": strategy["rationale"],
+                "aiGenerated": strategy["source"] == "gemini"
+            })
+            previous_bids[merchant_id] = current_bid
+
+        winning_bid, leader_id = min(candidates)
+        for row in rows:
+            if row["id"] == leader_id:
+                row["sweepKey"] = tick
+                if tick < 6:
+                    row["status"] = "Leading"
+                    row["statusLabel"] = "Leading"
+                else:
+                    row["state"] = "winner"
+                    row["status"] = "Winner"
+                    row["statusLabel"] = "Winner"
+                    row["thought"] = f"Gemini-selected strategy validated at ${winning_bid:.2f}. The server confirmed it is within the buyer cap and merchant floor."
+                    row["reasoning"] = row["thought"]
+            elif tick == 6 and row["state"] == "bidding":
+                row["status"] = "Outbid"
+                row["statusLabel"] = "Outbid"
+            elif row["state"] == "bidding" and row["currentBid"] <= row["hardFloor"]:
+                row["state"] = "floor"
+                row["status"] = "Floor reached"
+                row["statusLabel"] = "Floor reached"
+
+        yield json.dumps({
+            "tick": tick,
+            "is_complete": tick == 6,
+            "winner_id": leader_id if tick == 6 else None,
+            "winning_bid": winning_bid if tick == 6 else None,
+            "lowest_bid": winning_bid,
+            "savings": round(product["retail_baseline"] - winning_bid, 2) if tick == 6 else None,
+            "leader_id": leader_id,
+            "merchants": rows,
+            "product_id": prod_key,
+            "ai_mode": "gemini" if any_gemini_strategy else "safe_fallback",
+            "ai_model": GEMINI_MODEL
+        })
+
+        if tick < 6:
+            await asyncio.sleep(1.5)
+            if await request.is_disconnected():
+                return
 
 
 async def generate_bounty_stream(
@@ -641,6 +916,15 @@ async def generate_bounty_stream(
     floors = {k: v["hardFloor"] for k, v in merchants.items()}
 
     is_lowball = buyer_cap < min(floors.values())
+
+    # With a configured Gemini key, the model proposes the merchant targets and
+    # customer-visible rationales. The server validates the proposal before it
+    # becomes part of the auction stream. Without a key, retain the reproducible
+    # deterministic demo below.
+    if GEMINI_API_KEY and not is_lowball:
+        async for event in generate_ai_bounty_stream(request, buyer_cap, prod_key):
+            yield event
+        return
 
     # =========================================================================
     # SCENARIO A: LOWBALL REFUSAL (BELOW ALL MERCHANT FLOORS)

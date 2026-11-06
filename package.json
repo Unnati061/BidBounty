@@ -10,7 +10,7 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "@paypal/react-paypal-js": "^10.6.1",
     "ag-grid-community": "^36.2.0",
