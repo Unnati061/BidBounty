@@ -81,6 +81,11 @@ export default function App() {
 
   // Settlement Stepper & Count-up Animations
   const [settlementStep, setSettlementStep] = useState(0);
+  const [settlement, setSettlement] = useState({
+    authorized: null,
+    captured: null,
+    released: null
+  });
   const [animatedSavings, setAnimatedSavings] = useState(0.0);
   const [lowballShake, setLowballShake] = useState(false);
   const [showDealToast, setShowDealToast] = useState(false);
@@ -149,6 +154,7 @@ export default function App() {
     setCaptureId(null);
     setTimeLeft(15.0);
     setSettlementStep(0);
+    setSettlement({ authorized: null, captured: null, released: null });
     setAnimatedSavings(0.0);
     setLowballShake(false);
     setShowDealToast(false);
@@ -220,6 +226,7 @@ export default function App() {
   const handleAuthorizeSuccess = (authData, approvedOrderId) => {
     const newAuthId = authData.authorization_id || (maxSpendCap >= 220 ? 'AUTH-89K2M' : 'AUTH-41V9X');
     setAuthId(newAuthId);
+    setSettlement((current) => ({ ...current, authorized: maxSpendCap }));
     setSettlementStep(1);
     setPhase('bidding');
     startTimerCountdown(maxSpendCap >= 220 ? 9500 : 2500);
@@ -243,6 +250,7 @@ export default function App() {
     setPhase('authorizing');
     setTimeLeft(15.0);
     setSettlementStep(0);
+    setSettlement({ authorized: null, captured: null, released: null });
 
     setRowsEntered(false);
     setTimeout(() => setRowsEntered(true), 40);
@@ -281,6 +289,7 @@ export default function App() {
           const authData = await authRes.json();
           const newAuthId = authData.authorization_id || (maxSpendCap >= 220 ? 'AUTH-89K2M' : 'AUTH-41V9X');
           setAuthId(newAuthId);
+          setSettlement((current) => ({ ...current, authorized: maxSpendCap }));
           setSettlementStep(1);
 
           pushLog(
@@ -297,6 +306,7 @@ export default function App() {
           console.error('PayPal authorize error:', authErr);
           const fallbackAuthId = maxSpendCap >= 220 ? 'AUTH-89K2M' : 'AUTH-41V9X';
           setAuthId(fallbackAuthId);
+          setSettlement((current) => ({ ...current, authorized: maxSpendCap }));
           setSettlementStep(1);
           setPhase('bidding');
           startTimerCountdown(maxSpendCap >= 220 ? 9500 : 2500);
@@ -306,6 +316,7 @@ export default function App() {
       console.error('PayPal create-order error:', err);
       const fallbackAuthId = maxSpendCap >= 220 ? 'AUTH-89K2M' : 'AUTH-41V9X';
       setAuthId(fallbackAuthId);
+      setSettlement((current) => ({ ...current, authorized: maxSpendCap }));
       setSettlementStep(1);
       setPhase('bidding');
       startTimerCountdown(maxSpendCap >= 220 ? 9500 : 2500);
@@ -322,7 +333,10 @@ export default function App() {
     if (timerRef.current) clearInterval(timerRef.current);
     setTimeLeft(0);
 
-    const winningBid = payload.winning_bid || 223.50;
+    const streamedWinningBid = Number(payload.winning_bid);
+    const winningBid = Number.isFinite(streamedWinningBid)
+      ? streamedWinningBid
+      : Math.min(...merchants.map((merchant) => merchant.currentBid));
     animateSavingsCountUp(marketAvg - winningBid);
 
     if (pauseForManualConfirm && winningBid > autoCaptureLimit) {
@@ -395,8 +409,17 @@ export default function App() {
       });
       const capData = await capRes.json();
       const capId = capData.capture_id || capData.id || 'CAP-77M4P';
+      const capturedAmount = Number(capData.captured_amount ?? finalPrice);
+      const releasedAmount = Number(
+        capData.released_amount ?? Math.max(0, cap - capturedAmount)
+      );
 
       setCaptureId(capId);
+      setSettlement({
+        authorized: cap,
+        captured: capturedAmount,
+        released: releasedAmount
+      });
       setPhase('captured');
       setSettlementStep(2);
 
@@ -437,6 +460,11 @@ export default function App() {
     } catch (err) {
       console.error('Error during PayPal capture/track:', err);
       setCaptureId('CAP-77M4P');
+      setSettlement({
+        authorized: cap,
+        captured: finalPrice,
+        released: Math.max(0, cap - finalPrice)
+      });
       setPhase('captured');
       setSettlementStep(2);
       setTimeout(() => {
@@ -505,6 +533,7 @@ export default function App() {
               setTimeWarpMode={setTimeWarpMode}
               settlementStep={settlementStep}
               maxSpendCap={maxSpendCap}
+              settlement={settlement}
             />
 
             <BiddingTable
@@ -543,7 +572,12 @@ export default function App() {
         )}
       </main>
 
-      <DealToast showDealToast={showDealToast} />
+      <DealToast
+        showDealToast={showDealToast}
+        capturedAmount={settlement.captured}
+        releasedAmount={settlement.released}
+        savings={settlement.captured == null ? 0 : Math.max(0, marketAvg - settlement.captured)}
+      />
     </div>
   );
 }

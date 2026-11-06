@@ -10,12 +10,14 @@ const ArenaHeader = ({
   timeWarpMode,
   setTimeWarpMode,
   settlementStep,
-  maxSpendCap
+  maxSpendCap,
+  settlement
 }) => {
   // Circular SVG Countdown Ring Geometry
   const ringRadius = 18;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const ringDashoffset = ringCircumference * (1 - timeLeft / 15.0);
+  const formatMoney = (value) => (Number.isFinite(value) ? `$${value.toFixed(2)}` : '—');
 
   return (
     <div className="py-5 border-b border-white/[0.06] flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -113,9 +115,9 @@ const ArenaHeader = ({
         {/* Large High-Contrast Three-Step PayPal Settlement Stepper */}
         <div className="px-4 py-3 rounded-xl bg-[#0F1117] border border-white/[0.06] flex items-center gap-3">
           {[
-            { step: 1, title: 'Authorize', amount: `$${maxSpendCap.toFixed(2)}` },
-            { step: 2, title: 'Capture', amount: '$223.50' },
-            { step: 3, title: 'Release', amount: '$16.50' }
+            { step: 1, title: 'Authorize', amount: formatMoney(settlement?.authorized ?? maxSpendCap) },
+            { step: 2, title: 'Capture', amount: formatMoney(settlement?.captured) },
+            { step: 3, title: 'Release', amount: formatMoney(settlement?.released) }
           ].map((item, i) => {
             const done = settlementStep >= item.step;
             return (
